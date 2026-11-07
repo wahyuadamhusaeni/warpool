@@ -12,15 +12,31 @@ import (
 	"time"
 )
 
-// Pool adalah satu entri proxy pool di 9router-go (sesuai bentuk API-nya).
+// Pool adalah satu entri proxy pool di 9router-go.
+// PERHATIAN: API daftar pools mengembalikan field DATAR (name, proxyUrl, ...)
+// di level atas — bukan di dalam objek "data". Struct ini pernah salah bentuk
+// (mengharapkan data.proxyUrl) sehingga pencocokan selalu kosong dan daemon
+// membuat 30 pool duplikat di SETIAP siklus. Jangan diubah tanpa mengecek
+// respons asli GET /api/proxy-pools.
 type Pool struct {
 	ID         string `json:"id"`
+	Name       string `json:"name"`
+	ProxyURL   string `json:"proxyUrl"`
 	IsActive   bool   `json:"isActive"`
 	TestStatus string `json:"testStatus"`
 	Data       struct {
 		Name     string `json:"name"`
 		ProxyURL string `json:"proxyUrl"`
 	} `json:"data"`
+}
+
+// URL mengembalikan proxyUrl pool dari field datar, dengan fallback ke
+// bentuk bersarang bila suatu saat API berubah lagi.
+func (p Pool) URL() string {
+	if p.ProxyURL != "" {
+		return p.ProxyURL
+	}
+	return p.Data.ProxyURL
 }
 
 // Router adalah klien API admin 9router-go (login sesi cookie).
@@ -125,8 +141,21 @@ func (r *Router) SyncPools(cfg Config) (int, error) {
 		return 0, err
 	}
 	have := map[string]bool{}
+	counts := map[string]int{}
 	for _, p := range pools {
-		have[p.Data.ProxyURL] = true
+		have[p.URL()] = true
+		counts[p.URL()]++
+	}
+	// Pengaman anti-runaway: bila daftar pools sudah mengandung duplikat
+	// atau jauh lebih besar dari armada, JANGAN membuat apa pun — keadaan
+	// seperti itu berarti pencocokan sedang tidak bisa dipercaya.
+	for u, c := range counts {
+		if c > 1 {
+			return 0, fmt.Errorf("sinkron dibatalkan: %d pools duplikat untuk %s — bereskan dulu", c, u)
+		}
+	}
+	if len(pools) > cfg.Count*2 {
+		return 0, fmt.Errorf("sinkron dibatalkan: jumlah pools (%d) jauh melebihi armada (%d)", len(pools), cfg.Count)
 	}
 	created := 0
 	for n := 1; n <= cfg.Count; n++ {

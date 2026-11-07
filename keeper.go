@@ -71,7 +71,7 @@ func runCycle(ctx context.Context, cfg Config) []InstanceStatus {
 			} else {
 				have := map[string]bool{}
 				for _, p := range pools {
-					have[p.Data.ProxyURL] = true
+					have[p.URL()] = true
 				}
 				for i := range sts {
 					sts[i].Pool = have[cfg.PoolURL(sts[i].N)]
