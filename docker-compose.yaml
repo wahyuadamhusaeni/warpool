@@ -1,0 +1,31 @@
+# Deploy manajer warpool di VPS yang sama dengan 9router-go.
+# Sebelum pertama kali: bangun image instance sekali:
+#   docker build -f Dockerfile.usque -t warpool-usque:latest .
+services:
+  warpool:
+    build: .
+    image: warpool:latest
+    container_name: warpool
+    restart: unless-stopped
+    command: ["daemon"]
+    environment:
+      WARPOOL_COUNT: "30"
+      WARPOOL_BASE_DIR: /srv/apps/warpgo
+      WARPOOL_IMAGE: warpool-usque:latest
+      WARPOOL_NETWORK: public-net
+      ROUTER_URL: https://9.wadam.id
+      ROUTER_ENV_FILE: /run/secrets/9router.env
+      CHECK_INTERVAL: 15m
+      TZ: Asia/Jakarta
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      # Path di host harus sama dengan path di container: bind mount yang
+      # dibuat warpool untuk container instance dirujuk dari sisi host.
+      - /srv/apps/warpgo:/srv/apps/warpgo
+      - /srv/apps/9router-go/.env:/run/secrets/9router.env:ro
+    networks:
+      - public-net
+
+networks:
+  public-net:
+    external: true

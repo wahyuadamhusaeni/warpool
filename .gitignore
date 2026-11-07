@@ -1,0 +1,13 @@
+# Kredensial & config akun WARP (berisi kunci privat device) — JANGAN pernah commit
+**/config.json
+usque/
+acct*/
+*.env
+
+# Keluaran runtime
+warpool-status.json
+fleet.json
+*.tmp
+
+# Binary hasil build
+/warpool

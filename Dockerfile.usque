@@ -1,0 +1,13 @@
+# Image untuk satu instance proxy: usque (klien MASQUE Cloudflare WARP, Go)
+# mengekspos SOCKS5. Mode --http2 (MASQUE lewat TCP 443) wajib di jaringan
+# yang menyaring UDP keluar — di sana WireGuard & QUIC tidak bisa connect.
+FROM alpine:3.20
+ARG USQUE_VERSION=4.2.1
+RUN apk add --no-cache ca-certificates curl unzip \
+ && curl -sL -o /tmp/usque_${USQUE_VERSION}_linux_amd64.zip "https://github.com/Diniboy1123/usque/releases/download/v${USQUE_VERSION}/usque_${USQUE_VERSION}_linux_amd64.zip" \
+ && curl -sL -o /tmp/checksums.txt "https://github.com/Diniboy1123/usque/releases/download/v${USQUE_VERSION}/checksums.txt" \
+ && cd /tmp && grep "usque_${USQUE_VERSION}_linux_amd64.zip" checksums.txt | sha256sum -c - \
+ && unzip -o /tmp/usque_${USQUE_VERSION}_linux_amd64.zip usque -d /usr/local/bin \
+ && chmod +x /usr/local/bin/usque \
+ && rm -f /tmp/usque_${USQUE_VERSION}_linux_amd64.zip /tmp/checksums.txt
+ENTRYPOINT ["usque", "-c", "/etc/usque/config.json", "socks", "-b", "0.0.0.0", "-p", "1080", "--http2"]
